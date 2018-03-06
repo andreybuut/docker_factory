@@ -1,0 +1,11 @@
+django-pdb
+ipdb==0.10.3
+ipy==0.83
+ipykernel==4.6.1          # via ipywidgets, jupyter, jupyter-console, notebook, qtconsole
+ipython-genutils==0.2.0
+ipython==6.2.0
+# improved REPL
+ptipython
+ptpython
+fabric3
+jupyter

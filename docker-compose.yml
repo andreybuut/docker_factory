@@ -1,0 +1,88 @@
+version: '2.1'
+
+volumes:
+  ipython_history: {}
+
+services:
+  # ################################################################################
+  # Database
+  # ################################################################################
+  postgres:
+    image: mdillon/postgis
+    ports:
+     - "5432:5432"
+    environment:
+      - POSTGRES_DB=docker
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=manager
+      - PGPASSWORD=manager
+
+  # ################################################################################
+  # Caching
+  # ################################################################################
+  redis:
+    image: redis:4.0
+    ports:
+      - "6379:6379"
+
+  # ################################################################################
+  # Queue broker for Celery
+  # ################################################################################
+  rabbitmq:
+    image: rabbitmq:3.6.5
+    ports:
+      - "5672:5672"
+
+  # ################################################################################
+  # Abstraction
+  # ################################################################################
+  web_base:
+    build: .
+    volumes:
+      - ./:/home/www/app
+      - ipython_history:/root/.ipython/profile_default
+    env_file:
+    - .env
+    command: echo 'Shutting down...'
+
+  # ################################################################################
+  # Celery scheduler
+  # ################################################################################
+  celery_beat:
+    extends: web_base
+    command: celery beat --app config.celery:app -l info -S django
+    depends_on:
+      - celery_worker
+      - postgres
+      - redis
+      - rabbitmq
+    links:
+      - postgres
+      - redis
+      - rabbitmq
+
+  # ################################################################################
+  # Celery monitoring tool
+  # ################################################################################
+  celery_flower:
+    extends: web_base
+    command: celery flower --app config.celery:app
+    links:
+      - rabbitmq
+    ports:
+      - "5555:5555"
+
+      # ################################################################################
+  # Celery worker running async tasks
+  # ################################################################################
+  celery_worker:
+    extends: web_base
+    command: celery worker --app config.celery:app -l info
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    links:
+      - postgres
+      - redis
+      - rabbitmq
